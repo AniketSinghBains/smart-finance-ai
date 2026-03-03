@@ -128,45 +128,25 @@ elif risk_score >= 550:
 else:
     st.error("High financial risk. Immediate correction required.")
 
-# ---------------- SHAP EXPLAINABILITY ----------------
-st.subheader("📊 Model Explainability")
+# ---------------- FEATURE IMPORTANCE ----------------
+st.subheader("📊 Feature Importance")
 
-try:
-    explainer = shap.TreeExplainer(rf_cr)
-    shap_values = explainer.shap_values(input_df)
+importances = rf_cr.feature_importances_
 
-    if isinstance(shap_values, list):
-        shap_values = shap_values[1]
+importance_df = pd.DataFrame({
+    "Feature": input_df.columns,
+    "Impact": importances
+}).sort_values(by="Impact", ascending=True)
 
-    shap_values = np.array(shap_values)
-    shap_values = np.squeeze(shap_values)
+fig = px.bar(
+    importance_df,
+    x="Impact",
+    y="Feature",
+    orientation="h",
+    title="Feature Importance in Risk Prediction"
+)
 
-    if shap_values.ndim > 1:
-        shap_values = shap_values.mean(axis=0)
-
-    importance = np.abs(shap_values).flatten()
-
-    if len(importance) != len(input_df.columns):
-        importance = importance[:len(input_df.columns)]
-
-    shap_df = pd.DataFrame({
-        "Feature": input_df.columns,
-        "Impact": importance
-    })
-
-    fig = px.bar(
-        shap_df,
-        x="Impact",
-        y="Feature",
-        orientation="h",
-        title="Feature Impact on Risk Score"
-    )
-
-    st.plotly_chart(fig, width='stretch')
-
-except Exception:
-    st.warning("SHAP visualization temporarily unavailable.")
-
+st.plotly_chart(fig, width='stretch')
 # ---------------- 12 MONTH PROJECTION ----------------
 st.subheader("📈 12 Month Financial Projection")
 
