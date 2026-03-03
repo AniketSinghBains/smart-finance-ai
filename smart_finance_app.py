@@ -106,20 +106,38 @@ else:
 # ---------------- SHAP ----------------
 st.subheader("📊 Model Explainability")
 
-explainer = shap.TreeExplainer(rf_cr)
-shap_values = explainer.shap_values(input_df)
+try:
+    explainer = shap.TreeExplainer(rf_cr)
+    shap_values = explainer.shap_values(input_df)
 
-shap_vals = np.array(shap_values[1]) if isinstance(shap_values, list) else np.array(shap_values)
-importance = np.abs(shap_vals).mean(axis=0)
+    # Handle multi-output or binary classification safely
+    if isinstance(shap_values, list):
+        shap_values = shap_values[1]
 
-shap_df = pd.DataFrame({
-    "Feature": input_df.columns,
-    "Impact": importance
-})
+    shap_values = np.array(shap_values)
 
-fig = px.bar(shap_df, x="Impact", y="Feature", orientation="h")
-st.plotly_chart(fig, use_container_width=True)
+    # Flatten properly
+    shap_values = shap_values.reshape(-1)
 
+    importance = np.abs(shap_values)
+
+    shap_df = pd.DataFrame({
+        "Feature": input_df.columns,
+        "Impact": importance
+    })
+
+    fig = px.bar(
+        shap_df,
+        x="Impact",
+        y="Feature",
+        orientation="h",
+        title="Feature Impact on Risk Score"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+except Exception as e:
+    st.warning("SHAP visualization temporarily unavailable.")
 # ---------------- 12 MONTH PROJECTION ----------------
 st.subheader("📈 12 Month Projection")
 
