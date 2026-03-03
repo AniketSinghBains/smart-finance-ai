@@ -1,4 +1,4 @@
-# smart_finance_dashboard_full.py
+# smart_finance_app.py
 
 import streamlit as st
 import pandas as pd
@@ -15,9 +15,13 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title="Smart Finance Intelligence Pro",
-                   layout="wide",
-                   page_icon="💰")
+
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(
+    page_title="Smart Finance Intelligence Pro",
+    layout="wide",
+    page_icon="💰"
+)
 
 # ---------------- LOAD MODELS ----------------
 @st.cache_resource
@@ -26,32 +30,52 @@ def load_models():
 
 rf_cr, rf_fs = load_models()
 
-# ---------------- LOGIN ----------------
+# ---------------- LOGIN SYSTEM ----------------
 if "user" not in st.session_state:
     st.session_state.user = None
 
 users_db = {
-    "admin@finance.com": {"password": "admin123", "role": "Admin",
-                          "company": "Finance Corp", "lead": "Mr. Aniket Bains"},
-    "analyst@finance.com": {"password": "analyst123", "role": "Analyst",
-                            "company": "Finance Corp", "lead": "Mr. Aniket Bains"},
+    "admin@finance.com": {
+        "password": "admin123",
+        "role": "Admin",
+        "company": "Finance Corp",
+        "lead": "Mr. Aniket Bains"
+    },
+    "analyst@finance.com": {
+        "password": "analyst123",
+        "role": "Analyst",
+        "company": "Finance Corp",
+        "lead": "Mr. Aniket Bains"
+    },
 }
 
 if st.session_state.user is None:
     st.title("🔐 Smart Finance Intelligence – Secure Login")
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
+
     if st.button("Login"):
         if email in users_db and users_db[email]["password"] == password:
             st.session_state.user = users_db[email]
             st.rerun()
         else:
             st.error("Invalid Credentials")
+
     st.stop()
 
 user = st.session_state.user
 
-# ---------------- INPUTS ----------------
+# ---------------- SIDEBAR ----------------
+st.sidebar.markdown("## 👤 User Info")
+st.sidebar.write(f"**Company:** {user['company']}")
+st.sidebar.write(f"**Role:** {user['role']}")
+st.sidebar.write(f"**Finance Lead:** {user['lead']}")
+
+if st.sidebar.button("Logout"):
+    st.session_state.user = None
+    st.rerun()
+
+# ---------------- USER INPUTS ----------------
 st.sidebar.header("💵 Financial Inputs")
 
 income = st.sidebar.number_input("Income (₹)", 10000, 500000, 50000)
@@ -79,6 +103,7 @@ input_df = pd.DataFrame({
 credit_risk = rf_cr.predict(input_df)[0]
 financial_stability = rf_fs.predict(input_df)[0]
 
+# ---------------- RISK SCORE ----------------
 risk_score = int(300 + (financial_stability * 600))
 if credit_risk == 1:
     risk_score -= 50
@@ -89,13 +114,13 @@ st.title("📊 AI Risk Intelligence")
 
 st.metric("🏦 AI Risk Score (300–900)", risk_score)
 st.write("Credit Risk:", "High Risk" if credit_risk else "Low Risk")
-st.write("Financial Stability Score:", round(financial_stability,2))
+st.write("Financial Stability Score:", round(financial_stability, 2))
 
 # ---------------- AI INSIGHT ----------------
 st.subheader("🤖 AI Financial Insight")
 
 if risk_score >= 750:
-    st.success("Excellent profile. You are eligible for premium financial products.")
+    st.success("Excellent profile. Eligible for premium financial products.")
 elif risk_score >= 650:
     st.info("Good stability. Optimize savings for better score.")
 elif risk_score >= 550:
@@ -103,23 +128,26 @@ elif risk_score >= 550:
 else:
     st.error("High financial risk. Immediate correction required.")
 
-# ---------------- SHAP ----------------
+# ---------------- SHAP EXPLAINABILITY ----------------
 st.subheader("📊 Model Explainability")
 
 try:
     explainer = shap.TreeExplainer(rf_cr)
     shap_values = explainer.shap_values(input_df)
 
-    # Handle multi-output or binary classification safely
     if isinstance(shap_values, list):
         shap_values = shap_values[1]
 
     shap_values = np.array(shap_values)
+    shap_values = np.squeeze(shap_values)
 
-    # Flatten properly
-    shap_values = shap_values.reshape(-1)
+    if shap_values.ndim > 1:
+        shap_values = shap_values.mean(axis=0)
 
-    importance = np.abs(shap_values)
+    importance = np.abs(shap_values).flatten()
+
+    if len(importance) != len(input_df.columns):
+        importance = importance[:len(input_df.columns)]
 
     shap_df = pd.DataFrame({
         "Feature": input_df.columns,
@@ -134,20 +162,27 @@ try:
         title="Feature Impact on Risk Score"
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
-except Exception as e:
+except Exception:
     st.warning("SHAP visualization temporarily unavailable.")
+
 # ---------------- 12 MONTH PROJECTION ----------------
-st.subheader("📈 12 Month Projection")
+st.subheader("📈 12 Month Financial Projection")
 
-months = np.arange(1,13)
-growth = np.clip(financial_stability + months*0.02, 0, 1)
-fig2 = px.line(x=months, y=growth,
-               labels={"x":"Month","y":"Projected Stability"})
-st.plotly_chart(fig2, use_container_width=True)
+months = np.arange(1, 13)
+projection = np.clip(financial_stability + months * 0.02, 0, 1)
 
-# ---------------- PDF ----------------
+fig2 = px.line(
+    x=months,
+    y=projection,
+    labels={"x": "Month", "y": "Projected Stability"},
+    title="Projected Financial Stability (12 Months)"
+)
+
+st.plotly_chart(fig2, width='stretch')
+
+# ---------------- PDF REPORT ----------------
 st.subheader("📄 Download Professional PDF")
 
 def generate_pdf():
@@ -182,4 +217,3 @@ if st.button("Generate Report"):
     path = generate_pdf()
     with open(path,"rb") as f:
         st.download_button("Download PDF",f,"Finance_Report_Pro.pdf","application/pdf")
-
