@@ -1,8 +1,7 @@
 streamlit
 pandas
 numpy
-scikit-learn
 plotly
-shap
-reportlab
-kaleido
+joblib
+sqlalchemy
+psycopg2-binary
