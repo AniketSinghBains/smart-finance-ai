@@ -9,6 +9,20 @@ import joblib
 import pyodbc
 from datetime import datetime
 
+from sqlalchemy import create_engine, text
+import streamlit as st
+
+DATABASE_URL = st.secrets["DATABASE_URL"]
+engine = create_engine(DATABASE_URL)
+
+try:
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT 1"))
+        st.success("✅ Database Connected Successfully!")
+except Exception as e:
+    st.error("❌ Database Connection Failed")
+    st.write(e)
+
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="Smart Finance Intelligence Pro",
@@ -188,3 +202,4 @@ if user['role'] == "Admin":
     conn.close()
 
     st.dataframe(admin_df, width='stretch')
+
