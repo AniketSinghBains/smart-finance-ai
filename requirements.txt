@@ -3,5 +3,6 @@ pandas
 numpy
 plotly
 joblib
-sqlalchemy
-psycopg2-binary
+shap
+reportlab
+scikit-learn
