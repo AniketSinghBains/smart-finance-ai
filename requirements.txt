@@ -3,6 +3,5 @@ pandas
 numpy
 plotly
 joblib
-shap
 reportlab
 scikit-learn
