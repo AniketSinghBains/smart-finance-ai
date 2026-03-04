@@ -3,6 +3,6 @@ pandas
 numpy
 plotly
 joblib
+shap
 reportlab
-matplotlib
-streamlit-lottie
+scikit-learn
