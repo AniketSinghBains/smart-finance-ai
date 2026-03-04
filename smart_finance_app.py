@@ -175,13 +175,16 @@ st.plotly_chart(fig_proj,width="stretch")
 
 # ------------------- ROBO GUIDE -------------------
 st.subheader("🤖 Robo Guide Advisor")
+
+# Load Lottie animation
 def load_lottiefile(filepath: str):
     with open(filepath, "r") as f:
         return json.load(f)
 
 lottie_avatar = load_lottiefile("virtual_advisor.json")
-st_lottie(lottie_avatar, height=250, key="robo_avatar")
+st_lottie(lottie_avatar, height=200, key="robo_avatar")
 
+# Generate advice based on metrics
 def robo_advice(risk_score, savings_ratio, credit_util):
     advices = []
     if risk_score < 600:
@@ -209,7 +212,7 @@ with st.form("report_form"):
     submit_report = st.form_submit_button("Generate & Download Report")
 
 if submit_report:
-    st.balloons()
+    st.balloons()  # Balloon animation
 
     def generate_pdf(user_name, email, company_name, risk_score, credit_risk,
                      financial_stability, savings_ratio, input_df,
@@ -219,30 +222,36 @@ if submit_report:
         styles = getSampleStyleSheet()
         elements = []
 
-        # Logo
-        try:
-            logo_path = "logo.png"
-            logo = Image(logo_path, width=2*inch, height=2*inch)
-            elements.append(logo)
-        except: pass
+        # ---------------- Robo Guide Advice ----------------
+        elements.append(Paragraph("🤖 Robo Guide Advice:", styles["Heading2"]))
+        for a in advice_list:
+            elements.append(Paragraph(f"- {a}", styles["Normal"]))
         elements.append(Spacer(1,15))
 
-        # Title
-        elements.append(Paragraph("📊 Ultimate AI Financial Report", styles["Title"]))
-        elements.append(Spacer(1,15))
+        # ---------------- Remaining PDF Tables & Charts ----------------
+        # User info table
+        user_info = [["👤 Name", user_name],
+                     ["📧 Email", email],
+                     ["🏢 Company", company_name]]
+        table_user = Table(user_info, colWidths=[2.5*inch,5*inch])
+        table_user.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.lightblue),
+                                        ("TEXTCOLOR",(0,0),(-1,-1),colors.black),
+                                        ("GRID",(0,0),(-1,-1),1,colors.black)]))
+        elements.append(table_user)
+        elements.append(Spacer(1,20))
 
-        # Robo Guide Advice
-        try:
-            avatar_path = "virtual_advisor.png"  # optional static image
-            elements.append(Image(avatar_path, width=1.5*inch, height=1.5*inch))
-            elements.append(Spacer(1,10))
-            elements.append(Paragraph("🤖 Robo Guide Advice:", styles["Heading2"]))
-            for a in advice_list:
-                elements.append(Paragraph(f"- {a}", styles["Normal"]))
-            elements.append(Spacer(1,15))
-        except: pass
-
-        # TODO: Add remaining KPI tables & charts (copy from previous PDF code)
+        # KPI metrics table
+        kpi_data = [["Metric","Value"],
+                    ["🏦 Risk Score", str(risk_score)],
+                    ["💳 Credit Risk","High Risk" if credit_risk else "Low Risk"],
+                    ["📈 Stability %", f"{financial_stability*100:.2f}%"],
+                    ["💰 Savings %", f"{savings_ratio*100:.2f}%"]]
+        kpi_table = Table(kpi_data, colWidths=[3*inch,3*inch])
+        kpi_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.darkblue),
+                                       ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
+                                       ("GRID",(0,0),(-1,-1),1,colors.black)]))
+        elements.append(kpi_table)
+        elements.append(Spacer(1,20))
 
         doc.build(elements)
         buffer.seek(0)
