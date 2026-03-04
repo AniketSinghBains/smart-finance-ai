@@ -6,11 +6,12 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import joblib
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 import io
+import matplotlib.pyplot as plt
 import time
 
 # ---------------- PAGE CONFIG ----------------
@@ -42,8 +43,8 @@ rf_cr, rf_fs = load_models()
 # ---------------- LOGIN ----------------
 if "user" not in st.session_state: st.session_state.user = None
 users_db = {
-    "admin@finance.com":{"password":"admin123","role":"Admin","company":"Finance Corp","lead":"Mr. Aniket Bains"},
-    "analyst@finance.com":{"password":"analyst123","role":"Analyst","company":"Finance Corp","lead":"Mr. Aniket Bains"}
+    "admin@finance.com":{"password":"admin123","role":"Admin","company":"Finance Corp","lead":"Aniket Bains"},
+    "analyst@finance.com":{"password":"analyst123","role":"Analyst","company":"Finance Corp","lead":"Aniket Bains"}
 }
 
 if st.session_state.user is None:
@@ -81,34 +82,42 @@ mf_invest = st.sidebar.number_input("Mutual Funds (₹)",0,200000,10000)
 crypto_invest = st.sidebar.number_input("Crypto (₹)",0,100000,5000)
 savings_fund = st.sidebar.number_input("Savings Fund (₹)",0,200000,10000)
 
-st.sidebar.header("⚡ Real-Time Scenario Slider")
+st.sidebar.header("⚡ Scenario Adjustment")
 income_slider = st.sidebar.slider("Adjust Income (%)", 50, 150, 100)
 expense_slider = st.sidebar.slider("Adjust Total Expenses (%)", 50, 150, 100)
 emi_slider = st.sidebar.slider("Adjust EMI (%)", 50, 150, 100)
 
-# ---------------- CALCULATIONS ----------------
-total_expense = (food+travel+mobile+other+emi) * expense_slider/100
-savings = income*income_slider/100 - total_expense
-adjusted_emi = emi*emi_slider/100
+# ---------------- CALCULATION FUNCTION ----------------
+def calculate_metrics():
+    total_expense = (food+travel+mobile+other+emi)*expense_slider/100
+    savings = income*income_slider/100 - total_expense
+    adjusted_emi = emi*emi_slider/100
+    input_df = pd.DataFrame({
+        'Debt_to_Income':[adjusted_emi/(income*income_slider/100) if income else 0],
+        'Expense_Volatility':[np.std([food,travel,mobile,other])],
+        'Credit_Utilization':[credit_used/credit_limit if credit_limit else 0],
+        'Savings_Ratio':[savings/(income*income_slider/100) if income else 0],
+        'Investments':[investments]
+    })
+    credit_risk = rf_cr.predict(input_df)[0]
+    financial_stability = rf_fs.predict(input_df)[0]
+    risk_score = int(300 + financial_stability*600)
+    if credit_risk==1: risk_score-=50
+    risk_score = max(300,min(900,risk_score))
+    savings_ratio = savings/(income*income_slider/100) if income else 0
+    credit_util = credit_used/credit_limit if credit_limit else 0
+    return risk_score, credit_risk, financial_stability, savings_ratio, savings, input_df
 
-input_df = pd.DataFrame({'Debt_to_Income':[adjusted_emi/(income*income_slider/100) if income else 0],
-                         'Expense_Volatility':[np.std([food,travel,mobile,other])],
-                         'Credit_Utilization':[credit_used/credit_limit if credit_limit else 0],
-                         'Savings_Ratio':[savings/(income*income_slider/100) if income else 0],
-                         'Investments':[investments]})
+risk_score, credit_risk, financial_stability, savings_ratio, savings, input_df = calculate_metrics()
 
-credit_risk = rf_cr.predict(input_df)[0]
-financial_stability = rf_fs.predict(input_df)[0]
-risk_score = int(300 + (financial_stability*600))
-if credit_risk==1: risk_score-=50
-risk_score = max(300,min(900,risk_score))
-savings_ratio = savings/(income*income_slider/100) if income else 0
-credit_util = credit_used/credit_limit if credit_limit else 0
+# ---------------- LIVE ALERTS ----------------
+st.subheader("🚨 Investor Alerts")
+if risk_score<600: st.warning("⚠️ Risk Score Low! Reduce debts & expenses.")
+if savings_ratio<0.2: st.warning("⚠️ Savings Ratio < 20%! Increase savings.")
 
 # ---------------- KPI DASHBOARD ----------------
 st.title("📊 Ultimate AI Finance Dashboard")
 col1,col2,col3,col4 = st.columns(4)
-
 def animated_metric(col,label,value):
     placeholder = col.empty()
     for i in range(0,value+1,int(max(1,value/50))):
@@ -129,7 +138,7 @@ fig_gauge = go.Figure(go.Indicator(mode="gauge+number", value=risk_score,
 st.plotly_chart(fig_gauge, width="stretch")
 
 # ---------------- EXECUTIVE SUMMARY ----------------
-st.subheader("🧠 Executive Financial Summary")
+st.subheader("🧠 Executive Summary")
 summary = "Strong liquidity, excellent discipline." if risk_score>=750 else \
           "Moderate stability, improve savings." if risk_score>=600 else \
           "High risk, reduce debt & expenses."
@@ -155,8 +164,6 @@ st.dataframe(portfolio_df)
 fig_port = px.bar(portfolio_df,x="Investment Type",y="Projected Value",title="Projected Portfolio Value")
 st.plotly_chart(fig_port,width="stretch")
 
-# ---------------- PORTFOLIO HEATMAP ----------------
-st.subheader("📊 Portfolio Allocation Heatmap")
 fig_heat = px.treemap(portfolio_df, path=["Investment Type"], values="Amount", color="Projected ROI %",
                       color_continuous_scale="Viridis", title="Portfolio ROI Heatmap")
 st.plotly_chart(fig_heat,width="stretch")
@@ -171,22 +178,74 @@ st.plotly_chart(fig_proj,width="stretch")
 
 # ---------------- PDF REPORT ----------------
 st.subheader("📄 Download Executive PDF Report")
-def generate_pdf():
+def generate_pdf(user, risk_score, credit_risk, financial_stability, savings_ratio, input_df):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer)
+    doc = SimpleDocTemplate(buffer, pagesize=(8.5*inch,11*inch))
     styles = getSampleStyleSheet()
-    elements = [Paragraph("Ultimate AI Financial Report", styles["Title"]), Spacer(1,20)]
-    data=[["Metric","Value"],["Risk Score", str(risk_score)],["Credit Risk","High Risk" if credit_risk else "Low Risk"],
-          ["Stability %", f"{financial_stability*100:.2f}%"],["Savings %", f"{savings_ratio*100:.2f}%"]]
-    table = Table(data,colWidths=[3*inch,2*inch])
-    table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.darkblue),
-                               ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
-                               ("GRID",(0,0),(-1,-1),1,colors.black)]))
-    elements.append(table)
+    elements = []
+
+    # Logo
+    try:
+        logo_path = "logo.png"  # Add your logo file
+        logo = Image(logo_path, width=2*inch, height=2*inch)
+        elements.append(logo)
+    except: pass
+
+    elements.append(Spacer(1,20))
+    elements.append(Paragraph("📊 Ultimate AI Financial Report", styles["Title"]))
+    elements.append(Spacer(1,15))
+
+    # User info
+    user_info = [["User Name", user.get("lead","N/A")],
+                 ["Role", user.get("role","N/A")],
+                 ["Company", user.get("company","N/A")]]
+    table_user = Table(user_info,colWidths=[3*inch,4*inch])
+    table_user.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.lightblue),
+                                    ("GRID",(0,0),(-1,-1),1,colors.black)]))
+    elements.append(table_user)
+    elements.append(Spacer(1,20))
+
+    # KPI table
+    kpi_data = [["Metric","Value"],
+                ["Risk Score", str(risk_score)],
+                ["Credit Risk","High Risk" if credit_risk else "Low Risk"],
+                ["Stability %", f"{financial_stability*100:.2f}%"],
+                ["Savings %", f"{savings_ratio*100:.2f}%"]]
+    kpi_table = Table(kpi_data,colWidths=[3*inch,2*inch])
+    kpi_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.darkblue),
+                                   ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
+                                   ("GRID",(0,0),(-1,-1),1,colors.black)]))
+    elements.append(kpi_table)
+    elements.append(Spacer(1,20))
+
+    # User financial data
+    financial_data = [["Category","Amount (₹)"]]
+    for col in input_df.columns:
+        financial_data.append([col,f"{input_df[col].values[0]:,.2f}"])
+    financial_table = Table(financial_data,colWidths=[4*inch,3*inch])
+    financial_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.green),
+                                         ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
+                                         ("GRID",(0,0),(-1,-1),1,colors.black)]))
+    elements.append(financial_table)
+    elements.append(Spacer(1,20))
+
+    # Add chart
+    try:
+        fig, ax = plt.subplots(figsize=(5,3))
+        input_df.plot(kind="bar",ax=ax)
+        ax.set_title("Financial Feature Overview")
+        plt.tight_layout()
+        chart_path = "temp_chart.png"
+        fig.savefig(chart_path)
+        chart_img = Image(chart_path, width=5*inch, height=3*inch)
+        elements.append(chart_img)
+        elements.append(Spacer(1,20))
+    except: pass
+
     doc.build(elements)
     buffer.seek(0)
     return buffer
 
 if st.button("Generate Executive Report"):
-    pdf_buffer = generate_pdf()
+    pdf_buffer = generate_pdf(user, risk_score, credit_risk, financial_stability, savings_ratio, input_df)
     st.download_button("Download PDF", pdf_buffer,"Ultimate_Finance_Report.pdf","application/pdf")
