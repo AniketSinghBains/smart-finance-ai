@@ -174,7 +174,7 @@ st.plotly_chart(fig_proj,width="stretch")
 # ---------------- PDF REPORT ----------------
 st.subheader("📄 Download Executive PDF Report")
 
-# Add a form for user inputs before generating report
+# Form for user input before download
 with st.form("report_form"):
     report_name = st.text_input("Your Name", value=user.get("lead",""))
     report_email = st.text_input("Email", value="")
@@ -182,9 +182,11 @@ with st.form("report_form"):
     submit_report = st.form_submit_button("Generate & Download Report")
 
 if submit_report:
-    st.balloons()  # Balloon animation on download click
+    st.balloons()  # Balloon animation
 
-    def generate_pdf(user_name, email, company_name, risk_score, credit_risk, financial_stability, savings_ratio, input_df):
+    def generate_pdf(user_name, email, company_name, risk_score, credit_risk,
+                     financial_stability, savings_ratio, input_df,
+                     portfolio_df):
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=(8.5*inch,11*inch))
         styles = getSampleStyleSheet()
@@ -192,7 +194,7 @@ if submit_report:
 
         # Logo
         try:
-            logo_path = "logo.png"  # Add your logo file in project folder
+            logo_path = "logo.png"  # Add your logo in project folder
             logo = Image(logo_path, width=2*inch, height=2*inch)
             elements.append(logo)
         except: pass
@@ -201,7 +203,7 @@ if submit_report:
         elements.append(Paragraph("📊 Ultimate AI Financial Report", styles["Title"]))
         elements.append(Spacer(1,15))
 
-        # User info table
+        # User info
         user_info = [["User Name", user_name],
                      ["Email", email],
                      ["Company", company_name]]
@@ -224,7 +226,7 @@ if submit_report:
         elements.append(kpi_table)
         elements.append(Spacer(1,20))
 
-        # Financial data table
+        # User financial data
         financial_data = [["Category","Amount (₹)"]]
         for col in input_df.columns:
             financial_data.append([col,f"{input_df[col].values[0]:,.2f}"])
@@ -235,12 +237,56 @@ if submit_report:
         elements.append(financial_table)
         elements.append(Spacer(1,20))
 
+        # ---------------- Charts ----------------
+        import matplotlib.pyplot as plt
+
+        try:
+            # Financial feature overview chart
+            fig, ax = plt.subplots(figsize=(5,3))
+            input_df.plot(kind="bar", ax=ax, legend=False)
+            ax.set_title("Financial Feature Overview")
+            ax.set_ylabel("Value")
+            plt.tight_layout()
+            chart_path = "temp_feature_chart.png"
+            fig.savefig(chart_path)
+            plt.close(fig)
+            chart_img = Image(chart_path, width=5*inch, height=3*inch)
+            elements.append(chart_img)
+            elements.append(Spacer(1,15))
+        except: pass
+
+        try:
+            # Portfolio bar chart
+            fig, ax = plt.subplots(figsize=(5,3))
+            portfolio_df.plot(kind="bar", x="Investment Type", y="Projected Value", ax=ax, legend=False, color='skyblue')
+            ax.set_title("Projected Portfolio Value")
+            ax.set_ylabel("Amount (₹)")
+            plt.tight_layout()
+            port_chart_path = "temp_portfolio_chart.png"
+            fig.savefig(port_chart_path)
+            plt.close(fig)
+            port_img = Image(port_chart_path, width=5*inch, height=3*inch)
+            elements.append(port_img)
+            elements.append(Spacer(1,15))
+        except: pass
+
+        try:
+            # Portfolio heatmap (treemap)
+            fig = px.treemap(portfolio_df, path=["Investment Type"], values="Amount", color="Projected ROI %",
+                             color_continuous_scale="Viridis", title="Portfolio ROI Heatmap")
+            heat_path = "temp_portfolio_heatmap.png"
+            fig.write_image(heat_path)
+            heat_img = Image(heat_path, width=5*inch, height=3*inch)
+            elements.append(heat_img)
+            elements.append(Spacer(1,15))
+        except: pass
+
         doc.build(elements)
         buffer.seek(0)
         return buffer
 
     pdf_buffer = generate_pdf(report_name, report_email, report_company,
                               risk_score, credit_risk, financial_stability,
-                              savings_ratio, input_df)
+                              savings_ratio, input_df, portfolio_df)
 
     st.download_button("Download PDF", pdf_buffer,"Ultimate_Finance_Report.pdf","application/pdf")
