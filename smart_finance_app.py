@@ -65,7 +65,6 @@ st.sidebar.write(f"**Role:** {user['role']}")
 st.sidebar.write(f"**Finance Lead:** {user['lead']}")
 if st.sidebar.button("Logout"): st.session_state.user=None; st.rerun()
 
-# ---------------- FINANCIAL INPUTS ----------------
 st.sidebar.header("💵 Financial Inputs")
 income = st.sidebar.number_input("Income (₹)", 10000,500000,50000)
 food = st.sidebar.number_input("Food Expense (₹)",1000,50000,5000)
@@ -126,55 +125,122 @@ animated_metric(col3,"💰 Savings %",int(savings_ratio*100))
 animated_metric(col4,"💳 Credit Util %",int(credit_util*100))
 st.divider()
 
-# ---------------- REPORT FORM INPUT ----------------
-st.subheader("📄 Enter Info for Report")
+# ---------------- RISK GAUGE ----------------
+st.subheader("🎯 Risk Gauge")
+gauge_color = "green" if risk_score>=750 else "yellow" if risk_score>=600 else "red"
+fig_gauge = go.Figure(go.Indicator(mode="gauge+number", value=risk_score,
+                                   gauge={"axis":{"range":[300,900]},"bar":{"color":gauge_color}}))
+st.plotly_chart(fig_gauge, width="stretch")
+
+# ---------------- EXECUTIVE SUMMARY ----------------
+st.subheader("🧠 Executive Summary")
+summary = "Strong liquidity, excellent discipline." if risk_score>=750 else \
+          "Moderate stability, improve savings." if risk_score>=600 else \
+          "High risk, reduce debt & expenses."
+st.markdown(f"### {summary}")
+
+# ---------------- AI RECOMMENDATIONS ----------------
+st.subheader("🤖 AI Recommendations")
+if risk_score>=750:
+    st.markdown("- ✅ Maintain investments & discipline.\n- ✅ Keep optimized credit usage.")
+elif risk_score>=600:
+    st.markdown("- ⚡ Increase savings by 10%.\n- ⚡ Reduce credit utilization.")
+else:
+    st.markdown("- ❌ Cut expenses.\n- ❌ Reduce EMI dependency.\n- ⚠️ Build emergency fund.")
+
+# ---------------- PORTFOLIO SIMULATION ----------------
+st.subheader("💼 Portfolio Simulation & ROI")
+portfolio = {"Stocks":stock_invest,"Mutual Funds":mf_invest,"Crypto":crypto_invest,"Savings Fund":savings_fund}
+portfolio_df = pd.DataFrame(list(portfolio.items()),columns=["Investment Type","Amount"])
+portfolio_df["Projected ROI %"] = [0.12,0.08,0.25,0.05]
+portfolio_df["Projected Value"] = portfolio_df["Amount"]*(1+portfolio_df["Projected ROI %"])
+st.dataframe(portfolio_df)
+
+fig_port = px.bar(portfolio_df,x="Investment Type",y="Projected Value",title="Projected Portfolio Value")
+st.plotly_chart(fig_port,width="stretch")
+
+fig_heat = px.treemap(portfolio_df, path=["Investment Type"], values="Amount", color="Projected ROI %",
+                      color_continuous_scale="Viridis", title="Portfolio ROI Heatmap")
+st.plotly_chart(fig_heat,width="stretch")
+
+# ---------------- 12 MONTH PROJECTION ----------------
+st.subheader("📈 12 Month Financial Projection")
+month_selected = st.slider("Select Month",1,12,6)
+projection = np.clip(financial_stability + np.arange(1,13)*0.02,0,1)
+fig_proj = px.line(x=np.arange(1,13),y=projection,labels={"x":"Month","y":"Projected Stability"},title="Projected Financial Stability")
+fig_proj.add_vline(x=month_selected,line_dash="dash",line_color="red")
+st.plotly_chart(fig_proj,width="stretch")
+
+# ---------------- PDF REPORT ----------------
+st.subheader("📄 Download Executive PDF Report")
+
+# Add a form for user inputs before generating report
 with st.form("report_form"):
-    report_company = st.text_input("Company Name", value=user.get("company",""))
-    report_lead = st.text_input("Finance Lead", value=user.get("lead",""))
+    report_name = st.text_input("Your Name", value=user.get("lead",""))
     report_email = st.text_input("Email", value="")
+    report_company = st.text_input("Company Name", value=user.get("company",""))
     submit_report = st.form_submit_button("Generate & Download Report")
-    
-    if submit_report:
-        st.balloons()  # Balloon animation
-        def generate_pdf(user_name, company_name, email, risk_score, credit_risk, financial_stability, savings_ratio, input_df):
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=(8.5*inch,11*inch))
-            styles = getSampleStyleSheet()
-            elements = []
-            elements.append(Paragraph("📊 Ultimate AI Financial Report", styles["Title"]))
-            elements.append(Spacer(1,15))
-            user_info = [["User Name", user_name],
-                         ["Email", email],
-                         ["Company", company_name]]
-            table_user = Table(user_info,colWidths=[3*inch,4*inch])
-            table_user.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.lightblue),
-                                            ("GRID",(0,0),(-1,-1),1,colors.black)]))
-            elements.append(table_user)
-            elements.append(Spacer(1,15))
-            kpi_data = [["Metric","Value"],
-                        ["Risk Score", str(risk_score)],
-                        ["Credit Risk","High Risk" if credit_risk else "Low Risk"],
-                        ["Stability %", f"{financial_stability*100:.2f}%"],
-                        ["Savings %", f"{savings_ratio*100:.2f}%"]]
-            kpi_table = Table(kpi_data,colWidths=[3*inch,2*inch])
-            kpi_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.darkblue),
-                                           ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
-                                           ("GRID",(0,0),(-1,-1),1,colors.black)]))
-            elements.append(kpi_table)
-            elements.append(Spacer(1,15))
-            financial_data = [["Category","Amount (₹)"]]
-            for col in input_df.columns:
-                financial_data.append([col,f"{input_df[col].values[0]:,.2f}"])
-            financial_table = Table(financial_data,colWidths=[4*inch,3*inch])
-            financial_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.green),
-                                                 ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
-                                                 ("GRID",(0,0),(-1,-1),1,colors.black)]))
-            elements.append(financial_table)
-            doc.build(elements)
-            buffer.seek(0)
-            return buffer
-        
-        pdf_buffer = generate_pdf(user_name=report_lead, company_name=report_company, email=report_email,
-                                  risk_score=risk_score, credit_risk=credit_risk, financial_stability=financial_stability,
-                                  savings_ratio=savings_ratio, input_df=input_df)
-        st.download_button("Download PDF", pdf_buffer,"Ultimate_Finance_Report.pdf","application/pdf")
+
+if submit_report:
+    st.balloons()  # Balloon animation on download click
+
+    def generate_pdf(user_name, email, company_name, risk_score, credit_risk, financial_stability, savings_ratio, input_df):
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=(8.5*inch,11*inch))
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # Logo
+        try:
+            logo_path = "logo.png"  # Add your logo file in project folder
+            logo = Image(logo_path, width=2*inch, height=2*inch)
+            elements.append(logo)
+        except: pass
+
+        elements.append(Spacer(1,20))
+        elements.append(Paragraph("📊 Ultimate AI Financial Report", styles["Title"]))
+        elements.append(Spacer(1,15))
+
+        # User info table
+        user_info = [["User Name", user_name],
+                     ["Email", email],
+                     ["Company", company_name]]
+        table_user = Table(user_info, colWidths=[3*inch,4*inch])
+        table_user.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.lightblue),
+                                        ("GRID",(0,0),(-1,-1),1,colors.black)]))
+        elements.append(table_user)
+        elements.append(Spacer(1,20))
+
+        # KPI table
+        kpi_data = [["Metric","Value"],
+                    ["Risk Score", str(risk_score)],
+                    ["Credit Risk","High Risk" if credit_risk else "Low Risk"],
+                    ["Stability %", f"{financial_stability*100:.2f}%"],
+                    ["Savings %", f"{savings_ratio*100:.2f}%"]]
+        kpi_table = Table(kpi_data,colWidths=[3*inch,2*inch])
+        kpi_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.darkblue),
+                                       ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
+                                       ("GRID",(0,0),(-1,-1),1,colors.black)]))
+        elements.append(kpi_table)
+        elements.append(Spacer(1,20))
+
+        # Financial data table
+        financial_data = [["Category","Amount (₹)"]]
+        for col in input_df.columns:
+            financial_data.append([col,f"{input_df[col].values[0]:,.2f}"])
+        financial_table = Table(financial_data,colWidths=[4*inch,3*inch])
+        financial_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.green),
+                                             ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
+                                             ("GRID",(0,0),(-1,-1),1,colors.black)]))
+        elements.append(financial_table)
+        elements.append(Spacer(1,20))
+
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
+
+    pdf_buffer = generate_pdf(report_name, report_email, report_company,
+                              risk_score, credit_risk, financial_stability,
+                              savings_ratio, input_df)
+
+    st.download_button("Download PDF", pdf_buffer,"Ultimate_Finance_Report.pdf","application/pdf")
