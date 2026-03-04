@@ -4,5 +4,5 @@ numpy
 plotly
 joblib
 reportlab
-scikit-learn
 matplotlib
+streamlit-lottie
