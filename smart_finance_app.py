@@ -12,7 +12,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 import io
 import time
-import random
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Ultimate Live Finance Pro", layout="wide", page_icon="💰")
@@ -106,16 +105,14 @@ def calculate_metrics():
     risk_score = max(300,min(900,risk_score))
     savings_ratio = savings/(income*income_slider/100) if income else 0
     credit_util = credit_used/credit_limit if credit_limit else 0
-    return risk_score, financial_stability, savings_ratio, credit_util, savings
+    return risk_score, credit_risk, financial_stability, savings_ratio, savings
 
-risk_score, financial_stability, savings_ratio, credit_util, savings = calculate_metrics()
+risk_score, credit_risk, financial_stability, savings_ratio, savings = calculate_metrics()
 
 # ---------------- LIVE ALERTS ----------------
 st.subheader("🚨 Investor Alerts")
-if risk_score<600:
-    st.warning("⚠️ Risk Score Low! Consider reducing debts and expenses.")
-if savings_ratio<0.2:
-    st.warning("⚠️ Savings Ratio < 20%! Increase savings or reduce spending.")
+if risk_score<600: st.warning("⚠️ Risk Score Low! Consider reducing debts and expenses.")
+if savings_ratio<0.2: st.warning("⚠️ Savings Ratio < 20%! Increase savings or reduce spending.")
 
 # ---------------- KPI DASHBOARD ----------------
 st.title("📊 Ultimate Live AI Finance Dashboard")
@@ -172,13 +169,18 @@ st.plotly_chart(fig_proj,width="stretch")
 
 # ---------------- PDF REPORT ----------------
 st.subheader("📄 Download PDF Report")
-def generate_pdf():
+def generate_pdf(risk_score, credit_risk, financial_stability, savings_ratio):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer)
     styles = getSampleStyleSheet()
     elements = [Paragraph("Ultimate Live AI Financial Report", styles["Title"]), Spacer(1,20)]
-    data=[["Metric","Value"],["Risk Score", str(risk_score)],["Credit Risk","High Risk" if credit_risk else "Low Risk"],
-          ["Stability %", f"{financial_stability*100:.2f}%"],["Savings %", f"{savings_ratio*100:.2f}%"]]
+    data = [
+        ["Metric","Value"],
+        ["Risk Score", str(risk_score)],
+        ["Credit Risk","High Risk" if credit_risk else "Low Risk"],
+        ["Stability %", f"{financial_stability*100:.2f}%"],
+        ["Savings %", f"{savings_ratio*100:.2f}%"]
+    ]
     table = Table(data,colWidths=[3*inch,2*inch])
     table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.darkblue),
                                ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
@@ -189,5 +191,5 @@ def generate_pdf():
     return buffer
 
 if st.button("Generate Executive Report"):
-    pdf_buffer = generate_pdf()
+    pdf_buffer = generate_pdf(risk_score, credit_risk, financial_stability, savings_ratio)
     st.download_button("Download PDF", pdf_buffer,"Ultimate_Live_Finance_Report.pdf","application/pdf")
