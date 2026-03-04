@@ -192,46 +192,48 @@ if submit_report:
         styles = getSampleStyleSheet()
         elements = []
 
-        # Logo
+        # ---------------- Logo ----------------
         try:
-            logo_path = "logo.png"  # Add your logo in project folder
+            logo_path = "logo.png"  # Add your logo
             logo = Image(logo_path, width=2*inch, height=2*inch)
             elements.append(logo)
         except: pass
+        elements.append(Spacer(1,15))
 
-        elements.append(Spacer(1,20))
+        # ---------------- Title ----------------
         elements.append(Paragraph("📊 Ultimate AI Financial Report", styles["Title"]))
         elements.append(Spacer(1,15))
 
-        # User info
-        user_info = [["User Name", user_name],
-                     ["Email", email],
-                     ["Company", company_name]]
-        table_user = Table(user_info, colWidths=[3*inch,4*inch])
+        # ---------------- User Info Table ----------------
+        user_info = [["👤 Name", user_name],
+                     ["📧 Email", email],
+                     ["🏢 Company", company_name]]
+        table_user = Table(user_info, colWidths=[2.5*inch,5*inch])
         table_user.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.lightblue),
+                                        ("TEXTCOLOR",(0,0),(-1,-1),colors.black),
                                         ("GRID",(0,0),(-1,-1),1,colors.black)]))
         elements.append(table_user)
         elements.append(Spacer(1,20))
 
-        # KPI table
+        # ---------------- KPI Metrics Table ----------------
         kpi_data = [["Metric","Value"],
-                    ["Risk Score", str(risk_score)],
-                    ["Credit Risk","High Risk" if credit_risk else "Low Risk"],
-                    ["Stability %", f"{financial_stability*100:.2f}%"],
-                    ["Savings %", f"{savings_ratio*100:.2f}%"]]
-        kpi_table = Table(kpi_data,colWidths=[3*inch,2*inch])
+                    ["🏦 Risk Score", str(risk_score)],
+                    ["💳 Credit Risk","High Risk" if credit_risk else "Low Risk"],
+                    ["📈 Stability %", f"{financial_stability*100:.2f}%"],
+                    ["💰 Savings %", f"{savings_ratio*100:.2f}%"]]
+        kpi_table = Table(kpi_data, colWidths=[3*inch,3*inch])
         kpi_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.darkblue),
                                        ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
                                        ("GRID",(0,0),(-1,-1),1,colors.black)]))
         elements.append(kpi_table)
         elements.append(Spacer(1,20))
 
-        # User financial data
+        # ---------------- Financial Categories Table ----------------
         financial_data = [["Category","Amount (₹)"]]
         for col in input_df.columns:
             financial_data.append([col,f"{input_df[col].values[0]:,.2f}"])
-        financial_table = Table(financial_data,colWidths=[4*inch,3*inch])
-        financial_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.green),
+        financial_table = Table(financial_data, colWidths=[4*inch,3*inch])
+        financial_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#4CAF50")),
                                              ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
                                              ("GRID",(0,0),(-1,-1),1,colors.black)]))
         elements.append(financial_table)
@@ -239,45 +241,43 @@ if submit_report:
 
         # ---------------- Charts ----------------
         import matplotlib.pyplot as plt
+        import plotly.io as pio
 
         try:
-            # Financial feature overview chart
+            # Financial Feature Overview
             fig, ax = plt.subplots(figsize=(5,3))
-            input_df.plot(kind="bar", ax=ax, legend=False)
+            input_df.plot(kind="bar", ax=ax, legend=False, color='skyblue')
             ax.set_title("Financial Feature Overview")
             ax.set_ylabel("Value")
             plt.tight_layout()
             chart_path = "temp_feature_chart.png"
             fig.savefig(chart_path)
             plt.close(fig)
-            chart_img = Image(chart_path, width=5*inch, height=3*inch)
-            elements.append(chart_img)
+            elements.append(Image(chart_path, width=5*inch, height=3*inch))
             elements.append(Spacer(1,15))
         except: pass
 
         try:
-            # Portfolio bar chart
+            # Portfolio Bar Chart
             fig, ax = plt.subplots(figsize=(5,3))
-            portfolio_df.plot(kind="bar", x="Investment Type", y="Projected Value", ax=ax, legend=False, color='skyblue')
+            portfolio_df.plot(kind="bar", x="Investment Type", y="Projected Value", ax=ax, color='orange', legend=False)
             ax.set_title("Projected Portfolio Value")
             ax.set_ylabel("Amount (₹)")
             plt.tight_layout()
             port_chart_path = "temp_portfolio_chart.png"
             fig.savefig(port_chart_path)
             plt.close(fig)
-            port_img = Image(port_chart_path, width=5*inch, height=3*inch)
-            elements.append(port_img)
+            elements.append(Image(port_chart_path, width=5*inch, height=3*inch))
             elements.append(Spacer(1,15))
         except: pass
 
         try:
-            # Portfolio heatmap (treemap)
+            # Portfolio ROI Heatmap
             fig = px.treemap(portfolio_df, path=["Investment Type"], values="Amount", color="Projected ROI %",
                              color_continuous_scale="Viridis", title="Portfolio ROI Heatmap")
             heat_path = "temp_portfolio_heatmap.png"
             fig.write_image(heat_path)
-            heat_img = Image(heat_path, width=5*inch, height=3*inch)
-            elements.append(heat_img)
+            elements.append(Image(heat_path, width=5*inch, height=3*inch))
             elements.append(Spacer(1,15))
         except: pass
 
