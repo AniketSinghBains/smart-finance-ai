@@ -3,18 +3,14 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import shap
 import plotly.express as px
+import plotly.graph_objects as go
 import joblib
-import os
-import tempfile
 from datetime import datetime
-
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
-
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -22,6 +18,28 @@ st.set_page_config(
     layout="wide",
     page_icon="💰"
 )
+
+# ---------------- CUSTOM CSS (Premium UI) ----------------
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+    color: white;
+}
+.card {
+    background-color: #1e2a38;
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+}
+.section {
+    background-color: #16222a;
+    padding: 25px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------- LOAD MODELS ----------------
 @st.cache_resource
@@ -60,7 +78,6 @@ if st.session_state.user is None:
             st.rerun()
         else:
             st.error("Invalid Credentials")
-
     st.stop()
 
 user = st.session_state.user
@@ -75,7 +92,6 @@ if st.sidebar.button("Logout"):
     st.session_state.user = None
     st.rerun()
 
-# ---------------- USER INPUTS ----------------
 st.sidebar.header("💵 Financial Inputs")
 
 income = st.sidebar.number_input("Income (₹)", 10000, 500000, 50000)
@@ -103,30 +119,60 @@ input_df = pd.DataFrame({
 credit_risk = rf_cr.predict(input_df)[0]
 financial_stability = rf_fs.predict(input_df)[0]
 
-# ---------------- RISK SCORE ----------------
 risk_score = int(300 + (financial_stability * 600))
 if credit_risk == 1:
     risk_score -= 50
 risk_score = max(300, min(900, risk_score))
 
-# ---------------- DISPLAY ----------------
-st.title("📊 AI Risk Intelligence")
+savings_ratio = savings/income if income else 0
+credit_util = credit_used/credit_limit if credit_limit else 0
 
-st.metric("🏦 AI Risk Score (300–900)", risk_score)
-st.write("Credit Risk:", "High Risk" if credit_risk else "Low Risk")
-st.write("Financial Stability Score:", round(financial_stability, 2))
+# ---------------- KPI DASHBOARD ----------------
+st.title("📊 AI Risk Intelligence Dashboard")
 
-# ---------------- AI INSIGHT ----------------
-st.subheader("🤖 AI Financial Insight")
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("🏦 Risk Score", risk_score)
+col2.metric("📈 Stability %", f"{financial_stability*100:.1f}%")
+col3.metric("💰 Savings %", f"{savings_ratio*100:.1f}%")
+col4.metric("💳 Credit Util %", f"{credit_util*100:.1f}%")
+
+st.divider()
+
+# ---------------- RISK GAUGE ----------------
+st.subheader("🎯 Risk Gauge")
 
 if risk_score >= 750:
-    st.success("Excellent profile. Eligible for premium financial products.")
-elif risk_score >= 650:
-    st.info("Good stability. Optimize savings for better score.")
-elif risk_score >= 550:
-    st.warning("Moderate risk. Reduce EMI and credit usage.")
+    gauge_color = "green"
+elif risk_score >= 600:
+    gauge_color = "yellow"
 else:
-    st.error("High financial risk. Immediate correction required.")
+    gauge_color = "red"
+
+fig_gauge = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=risk_score,
+    gauge={
+        "axis": {"range": [300, 900]},
+        "bar": {"color": gauge_color}
+    }
+))
+
+st.plotly_chart(fig_gauge, width="stretch")
+
+# ---------------- EXECUTIVE SUMMARY ----------------
+st.subheader("🧠 Executive Financial Summary")
+
+if risk_score >= 750:
+    summary = "User demonstrates strong liquidity position with excellent financial discipline and optimized credit management."
+elif risk_score >= 600:
+    summary = "User maintains moderate financial stability with scope for improving savings ratio and reducing liabilities."
+else:
+    summary = "User shows elevated financial risk exposure with high dependency on credit and low savings buffer."
+
+st.markdown(f"### {summary}")
+
+st.divider()
 
 # ---------------- FEATURE IMPORTANCE ----------------
 st.subheader("📊 Feature Importance")
@@ -143,10 +189,11 @@ fig = px.bar(
     x="Impact",
     y="Feature",
     orientation="h",
-    title="Feature Importance in Risk Prediction"
+    title="Feature Impact on Credit Risk"
 )
 
-st.plotly_chart(fig, width='stretch')
+st.plotly_chart(fig, width="stretch")
+
 # ---------------- 12 MONTH PROJECTION ----------------
 st.subheader("📈 12 Month Financial Projection")
 
@@ -160,10 +207,10 @@ fig2 = px.line(
     title="Projected Financial Stability (12 Months)"
 )
 
-st.plotly_chart(fig2, width='stretch')
+st.plotly_chart(fig2, width="stretch")
 
 # ---------------- PDF REPORT ----------------
-st.subheader("📄 Download Professional PDF")
+st.subheader("📄 Download Executive PDF Report")
 
 def generate_pdf():
     file_path = "Finance_Report_Pro.pdf"
@@ -171,14 +218,15 @@ def generate_pdf():
     styles = getSampleStyleSheet()
     elements = []
 
-    elements.append(Paragraph("AI Financial Intelligence Report", styles["Title"]))
+    elements.append(Paragraph("Executive AI Financial Report", styles["Title"]))
     elements.append(Spacer(1, 20))
 
     data = [
         ["Metric","Value"],
         ["Risk Score", str(risk_score)],
         ["Credit Risk","High Risk" if credit_risk else "Low Risk"],
-        ["Stability", f"{financial_stability:.2f}"]
+        ["Stability %", f"{financial_stability*100:.2f}%"],
+        ["Savings %", f"{savings_ratio*100:.2f}%"]
     ]
 
     table = Table(data, colWidths=[3*inch,2*inch])
@@ -193,7 +241,7 @@ def generate_pdf():
 
     return file_path
 
-if st.button("Generate Report"):
+if st.button("Generate Executive Report"):
     path = generate_pdf()
     with open(path,"rb") as f:
         st.download_button("Download PDF",f,"Finance_Report_Pro.pdf","application/pdf")
