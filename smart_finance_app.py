@@ -173,6 +173,8 @@ st.plotly_chart(fig_proj,width="stretch")
 
 # ---------------- PDF REPORT ----------------
 st.subheader("📄 Download Executive PDF Report")
+
+# Form for user input before download
 with st.form("report_form"):
     report_name = st.text_input("Your Name", value=user.get("lead",""))
     report_email = st.text_input("Email", value="")
@@ -183,35 +185,37 @@ if submit_report:
     st.balloons()  # Balloon animation
 
     def generate_pdf(user_name, email, company_name, risk_score, credit_risk,
-                     financial_stability, savings_ratio, input_df, portfolio_df):
+                     financial_stability, savings_ratio, input_df,
+                     portfolio_df):
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=(8.5*inch,11*inch))
         styles = getSampleStyleSheet()
         elements = []
 
-        # Logo
+        # ---------------- Logo ----------------
         try:
-            logo_path = "logo.png"
+            logo_path = "logo.png"  # Add your logo
             logo = Image(logo_path, width=2*inch, height=2*inch)
             elements.append(logo)
         except: pass
         elements.append(Spacer(1,15))
 
-        # Title
+        # ---------------- Title ----------------
         elements.append(Paragraph("📊 Ultimate AI Financial Report", styles["Title"]))
         elements.append(Spacer(1,15))
 
-        # User Info Table
+        # ---------------- User Info Table ----------------
         user_info = [["👤 Name", user_name],
                      ["📧 Email", email],
                      ["🏢 Company", company_name]]
         table_user = Table(user_info, colWidths=[2.5*inch,5*inch])
         table_user.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.lightblue),
+                                        ("TEXTCOLOR",(0,0),(-1,-1),colors.black),
                                         ("GRID",(0,0),(-1,-1),1,colors.black)]))
         elements.append(table_user)
         elements.append(Spacer(1,20))
 
-        # KPI Metrics Table
+        # ---------------- KPI Metrics Table ----------------
         kpi_data = [["Metric","Value"],
                     ["🏦 Risk Score", str(risk_score)],
                     ["💳 Credit Risk","High Risk" if credit_risk else "Low Risk"],
@@ -224,66 +228,56 @@ if submit_report:
         elements.append(kpi_table)
         elements.append(Spacer(1,20))
 
-        # Financial Categories Table
+        # ---------------- Financial Categories Table ----------------
         financial_data = [["Category","Amount (₹)"]]
         for col in input_df.columns:
             financial_data.append([col,f"{input_df[col].values[0]:,.2f}"])
-        financial_table = Table(financial_data,colWidths=[4*inch,3*inch])
+        financial_table = Table(financial_data, colWidths=[4*inch,3*inch])
         financial_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#4CAF50")),
                                              ("TEXTCOLOR",(0,0),(-1,0),colors.whitesmoke),
                                              ("GRID",(0,0),(-1,-1),1,colors.black)]))
         elements.append(financial_table)
         elements.append(Spacer(1,20))
 
-        # ---------------- Interactive Charts with Seaborn ----------------
-        import seaborn as sns
+        # ---------------- Charts ----------------
         import matplotlib.pyplot as plt
+        import plotly.io as pio
 
-        # Financial Features Bar Chart
         try:
-            sns.set_theme(style="whitegrid")
-            fig, ax = plt.subplots(figsize=(6,3))
-            sns.barplot(data=input_df.T.reset_index(), x="index", y=0, palette=sns.color_palette("Blues_d"), ax=ax)
-            for p in ax.patches:
-                ax.annotate(f'{p.get_height():.2f}', (p.get_x()+p.get_width()/2, p.get_height()),
-                            ha='center', va='bottom', fontsize=8)
+            # Financial Feature Overview
+            fig, ax = plt.subplots(figsize=(5,3))
+            input_df.plot(kind="bar", ax=ax, legend=False, color='skyblue')
             ax.set_title("Financial Feature Overview")
-            ax.set_xlabel("Category")
             ax.set_ylabel("Value")
             plt.tight_layout()
-            feature_chart_path = "temp_feature_chart.png"
-            fig.savefig(feature_chart_path)
+            chart_path = "temp_feature_chart.png"
+            fig.savefig(chart_path)
             plt.close(fig)
-            elements.append(Image(feature_chart_path, width=6*inch, height=3*inch))
+            elements.append(Image(chart_path, width=5*inch, height=3*inch))
             elements.append(Spacer(1,15))
         except: pass
 
-        # Portfolio Projected Value Chart
         try:
-            fig, ax = plt.subplots(figsize=(6,3))
-            sns.barplot(data=portfolio_df, x="Investment Type", y="Projected Value",
-                        palette=sns.color_palette("Oranges_r"), ax=ax)
-            for p in ax.patches:
-                ax.annotate(f'{p.get_height():,.0f}', (p.get_x()+p.get_width()/2, p.get_height()),
-                            ha='center', va='bottom', fontsize=8)
+            # Portfolio Bar Chart
+            fig, ax = plt.subplots(figsize=(5,3))
+            portfolio_df.plot(kind="bar", x="Investment Type", y="Projected Value", ax=ax, color='orange', legend=False)
             ax.set_title("Projected Portfolio Value")
             ax.set_ylabel("Amount (₹)")
             plt.tight_layout()
             port_chart_path = "temp_portfolio_chart.png"
             fig.savefig(port_chart_path)
             plt.close(fig)
-            elements.append(Image(port_chart_path, width=6*inch, height=3*inch))
+            elements.append(Image(port_chart_path, width=5*inch, height=3*inch))
             elements.append(Spacer(1,15))
         except: pass
 
-        # Portfolio ROI Treemap (via Plotly static image)
         try:
-            import plotly.express as px
+            # Portfolio ROI Heatmap
             fig = px.treemap(portfolio_df, path=["Investment Type"], values="Amount", color="Projected ROI %",
                              color_continuous_scale="Viridis", title="Portfolio ROI Heatmap")
             heat_path = "temp_portfolio_heatmap.png"
             fig.write_image(heat_path)
-            elements.append(Image(heat_path, width=6*inch, height=3*inch))
+            elements.append(Image(heat_path, width=5*inch, height=3*inch))
             elements.append(Spacer(1,15))
         except: pass
 
