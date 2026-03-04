@@ -106,14 +106,9 @@ def calculate_metrics():
     risk_score = max(300,min(900,risk_score))
     savings_ratio = savings/(income*income_slider/100) if income else 0
     credit_util = credit_used/credit_limit if credit_limit else 0
-    return risk_score, credit_risk, financial_stability, savings_ratio, savings, input_df
+    return risk_score, credit_risk, financial_stability, savings_ratio, credit_util, savings, input_df
 
-risk_score, credit_risk, financial_stability, savings_ratio, savings, input_df = calculate_metrics()
-
-# ---------------- LIVE ALERTS ----------------
-st.subheader("🚨 Investor Alerts")
-if risk_score<600: st.warning("⚠️ Risk Score Low! Reduce debts & expenses.")
-if savings_ratio<0.2: st.warning("⚠️ Savings Ratio < 20%! Increase savings.")
+risk_score, credit_risk, financial_stability, savings_ratio, credit_util, savings, input_df = calculate_metrics()
 
 # ---------------- KPI DASHBOARD ----------------
 st.title("📊 Ultimate AI Finance Dashboard")
