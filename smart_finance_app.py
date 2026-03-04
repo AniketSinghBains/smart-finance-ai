@@ -13,26 +13,51 @@ from reportlab.lib.units import inch
 import io
 import matplotlib.pyplot as plt
 import time
+import base64
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Ultimate Smart Finance Pro", layout="wide", page_icon="💰")
 
 # ---------------- THEME TOGGLE ----------------
 theme = st.sidebar.radio("🌗 Theme", ["Dark","Light"])
+
+# ---------------- FINTECH BACKGROUND IMAGE ----------------
+def set_background_image(image_file):
+    with open(image_file, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{encoded}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 if theme=="Dark":
-    st.markdown("""
-    <style>
-    .stApp {background: linear-gradient(to right, #0f2027, #203a43, #2c5364); color: white;}
-    .card {background-color: #1e2a38; padding: 20px; border-radius: 15px; text-align: center;}
-    .section {background-color: #16222a; padding: 25px; border-radius: 20px; margin-bottom: 25px;}
-    </style>""", unsafe_allow_html=True)
+    set_background_image("fintech_dark.png")
+    card_bg = "#1e2a38"
+    section_bg = "#16222a"
+    text_color = "white"
 else:
-    st.markdown("""
-    <style>
-    .stApp {background: linear-gradient(to right, #f5f7fa, #c3cfe2, #e2e2e2); color: black;}
-    .card {background-color: #ffffff; padding: 20px; border-radius: 15px; text-align: center; color:black;}
-    .section {background-color: #f0f0f0; padding: 25px; border-radius: 20px; margin-bottom: 25px; color:black;}
-    </style>""", unsafe_allow_html=True)
+    set_background_image("fintech_light.png")
+    card_bg = "#ffffff"
+    section_bg = "#f0f0f0"
+    text_color = "black"
+
+# Apply card & section styles
+st.markdown(f"""
+<style>
+.card {{background-color: {card_bg}; padding: 20px; border-radius: 15px; text-align: center; color:{text_color};}}
+.section {{background-color: {section_bg}; padding: 25px; border-radius: 20px; margin-bottom: 25px; color:{text_color};}}
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------- LOAD MODELS ----------------
 @st.cache_resource
@@ -173,8 +198,6 @@ st.plotly_chart(fig_proj,width="stretch")
 
 # ---------------- PDF REPORT ----------------
 st.subheader("📄 Download Executive PDF Report")
-
-# Form for user input before download
 with st.form("report_form"):
     report_name = st.text_input("Your Name", value=user.get("lead",""))
     report_email = st.text_input("Email", value="")
@@ -182,7 +205,7 @@ with st.form("report_form"):
     submit_report = st.form_submit_button("Generate & Download Report")
 
 if submit_report:
-    st.balloons()  # Balloon animation
+    st.balloons()
 
     def generate_pdf(user_name, email, company_name, risk_score, credit_risk,
                      financial_stability, savings_ratio, input_df,
@@ -192,19 +215,19 @@ if submit_report:
         styles = getSampleStyleSheet()
         elements = []
 
-        # ---------------- Logo ----------------
+        # Logo
         try:
-            logo_path = "logo.png"  # Add your logo
+            logo_path = "logo.png"
             logo = Image(logo_path, width=2*inch, height=2*inch)
             elements.append(logo)
         except: pass
         elements.append(Spacer(1,15))
 
-        # ---------------- Title ----------------
+        # Title
         elements.append(Paragraph("📊 Ultimate AI Financial Report", styles["Title"]))
         elements.append(Spacer(1,15))
 
-        # ---------------- User Info Table ----------------
+        # User Info Table
         user_info = [["👤 Name", user_name],
                      ["📧 Email", email],
                      ["🏢 Company", company_name]]
@@ -215,7 +238,7 @@ if submit_report:
         elements.append(table_user)
         elements.append(Spacer(1,20))
 
-        # ---------------- KPI Metrics Table ----------------
+        # KPI Metrics Table
         kpi_data = [["Metric","Value"],
                     ["🏦 Risk Score", str(risk_score)],
                     ["💳 Credit Risk","High Risk" if credit_risk else "Low Risk"],
@@ -228,7 +251,7 @@ if submit_report:
         elements.append(kpi_table)
         elements.append(Spacer(1,20))
 
-        # ---------------- Financial Categories Table ----------------
+        # Financial Categories Table
         financial_data = [["Category","Amount (₹)"]]
         for col in input_df.columns:
             financial_data.append([col,f"{input_df[col].values[0]:,.2f}"])
@@ -239,12 +262,9 @@ if submit_report:
         elements.append(financial_table)
         elements.append(Spacer(1,20))
 
-        # ---------------- Charts ----------------
-        import matplotlib.pyplot as plt
-        import plotly.io as pio
-
+        # Charts
         try:
-            # Financial Feature Overview
+            # Financial Feature
             fig, ax = plt.subplots(figsize=(5,3))
             input_df.plot(kind="bar", ax=ax, legend=False, color='skyblue')
             ax.set_title("Financial Feature Overview")
