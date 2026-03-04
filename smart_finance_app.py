@@ -6,7 +6,6 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import joblib
-from datetime import datetime
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
@@ -15,7 +14,7 @@ import io
 import time
 
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="Smart Finance Intelligence Pro", layout="wide", page_icon="💰")
+st.set_page_config(page_title="Ultimate Smart Finance Pro", layout="wide", page_icon="💰")
 
 # ---------------- THEME TOGGLE ----------------
 theme = st.sidebar.radio("🌗 Theme", ["Dark","Light"])
@@ -42,11 +41,13 @@ rf_cr, rf_fs = load_models()
 
 # ---------------- LOGIN ----------------
 if "user" not in st.session_state: st.session_state.user = None
-users_db = {"admin@finance.com":{"password":"admin123","role":"Admin","company":"Finance Corp","lead":"Mr. Aniket Bains"},
-            "analyst@finance.com":{"password":"analyst123","role":"Analyst","company":"Finance Corp","lead":"Mr. Aniket Bains"}}
+users_db = {
+    "admin@finance.com":{"password":"admin123","role":"Admin","company":"Finance Corp","lead":"Mr. Aniket Bains"},
+    "analyst@finance.com":{"password":"analyst123","role":"Analyst","company":"Finance Corp","lead":"Mr. Aniket Bains"}
+}
 
 if st.session_state.user is None:
-    st.title("🔐 Smart Finance Intelligence – Secure Login")
+    st.title("🔐 Ultimate Smart Finance – Secure Login")
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
@@ -80,13 +81,20 @@ mf_invest = st.sidebar.number_input("Mutual Funds (₹)",0,200000,10000)
 crypto_invest = st.sidebar.number_input("Crypto (₹)",0,100000,5000)
 savings_fund = st.sidebar.number_input("Savings Fund (₹)",0,200000,10000)
 
+st.sidebar.header("⚡ Real-Time Scenario Slider")
+income_slider = st.sidebar.slider("Adjust Income (%)", 50, 150, 100)
+expense_slider = st.sidebar.slider("Adjust Total Expenses (%)", 50, 150, 100)
+emi_slider = st.sidebar.slider("Adjust EMI (%)", 50, 150, 100)
+
 # ---------------- CALCULATIONS ----------------
-total_expense = food+travel+mobile+other+emi
-savings = income-total_expense
-input_df = pd.DataFrame({'Debt_to_Income':[emi/income if income else 0],
+total_expense = (food+travel+mobile+other+emi) * expense_slider/100
+savings = income*income_slider/100 - total_expense
+adjusted_emi = emi*emi_slider/100
+
+input_df = pd.DataFrame({'Debt_to_Income':[adjusted_emi/(income*income_slider/100) if income else 0],
                          'Expense_Volatility':[np.std([food,travel,mobile,other])],
                          'Credit_Utilization':[credit_used/credit_limit if credit_limit else 0],
-                         'Savings_Ratio':[savings/income if income else 0],
+                         'Savings_Ratio':[savings/(income*income_slider/100) if income else 0],
                          'Investments':[investments]})
 
 credit_risk = rf_cr.predict(input_df)[0]
@@ -94,11 +102,11 @@ financial_stability = rf_fs.predict(input_df)[0]
 risk_score = int(300 + (financial_stability*600))
 if credit_risk==1: risk_score-=50
 risk_score = max(300,min(900,risk_score))
-savings_ratio = savings/income if income else 0
+savings_ratio = savings/(income*income_slider/100) if income else 0
 credit_util = credit_used/credit_limit if credit_limit else 0
 
 # ---------------- KPI DASHBOARD ----------------
-st.title("📊 AI Risk Intelligence Dashboard")
+st.title("📊 Ultimate AI Finance Dashboard")
 col1,col2,col3,col4 = st.columns(4)
 
 def animated_metric(col,label,value):
@@ -106,6 +114,7 @@ def animated_metric(col,label,value):
     for i in range(0,value+1,int(max(1,value/50))):
         placeholder.metric(label,i)
         time.sleep(0.01)
+
 animated_metric(col1,"🏦 Risk Score",risk_score)
 animated_metric(col2,"📈 Stability %",int(financial_stability*100))
 animated_metric(col3,"💰 Savings %",int(savings_ratio*100))
@@ -121,16 +130,19 @@ st.plotly_chart(fig_gauge, width="stretch")
 
 # ---------------- EXECUTIVE SUMMARY ----------------
 st.subheader("🧠 Executive Financial Summary")
-summary = "User demonstrates strong liquidity position with excellent financial discipline and optimized credit management." if risk_score>=750 else \
-          "User maintains moderate financial stability with scope for improving savings ratio and reducing liabilities." if risk_score>=600 else \
-          "User shows elevated financial risk exposure with high dependency on credit and low savings buffer."
+summary = "Strong liquidity, excellent discipline." if risk_score>=750 else \
+          "Moderate stability, improve savings." if risk_score>=600 else \
+          "High risk, reduce debt & expenses."
 st.markdown(f"### {summary}")
 
 # ---------------- AI RECOMMENDATIONS ----------------
 st.subheader("🤖 AI Recommendations")
-if risk_score>=750: st.markdown("- ✅ Keep investing in high-return portfolios.\n- ✅ Maintain current expenses strategy.")
-elif risk_score>=600: st.markdown("- ⚡ Try to increase savings by 10%.\n- ⚡ Reduce credit utilization.")
-else: st.markdown("- ❌ Cut down unnecessary expenses.\n- ❌ Reduce EMI dependency.\n- ⚠️ Build emergency savings fund.")
+if risk_score>=750:
+    st.markdown("- ✅ Maintain investments & discipline.\n- ✅ Keep optimized credit usage.")
+elif risk_score>=600:
+    st.markdown("- ⚡ Increase savings by 10%.\n- ⚡ Reduce credit utilization.")
+else:
+    st.markdown("- ❌ Cut expenses.\n- ❌ Reduce EMI dependency.\n- ⚠️ Build emergency fund.")
 
 # ---------------- PORTFOLIO SIMULATION ----------------
 st.subheader("💼 Portfolio Simulation & ROI")
@@ -140,34 +152,22 @@ portfolio_df["Projected ROI %"] = [0.12,0.08,0.25,0.05]
 portfolio_df["Projected Value"] = portfolio_df["Amount"]*(1+portfolio_df["Projected ROI %"])
 st.dataframe(portfolio_df)
 
-fig3 = px.bar(portfolio_df, x="Investment Type", y="Projected Value", title="Projected Portfolio Value")
-st.plotly_chart(fig3, width="stretch")
+fig_port = px.bar(portfolio_df,x="Investment Type",y="Projected Value",title="Projected Portfolio Value")
+st.plotly_chart(fig_port,width="stretch")
 
 # ---------------- PORTFOLIO HEATMAP ----------------
 st.subheader("📊 Portfolio Allocation Heatmap")
 fig_heat = px.treemap(portfolio_df, path=["Investment Type"], values="Amount", color="Projected ROI %",
                       color_continuous_scale="Viridis", title="Portfolio ROI Heatmap")
-st.plotly_chart(fig_heat, width="stretch")
+st.plotly_chart(fig_heat,width="stretch")
 
 # ---------------- 12 MONTH PROJECTION ----------------
 st.subheader("📈 12 Month Financial Projection")
 month_selected = st.slider("Select Month",1,12,6)
 projection = np.clip(financial_stability + np.arange(1,13)*0.02,0,1)
-fig2 = px.line(x=np.arange(1,13),y=projection,labels={"x":"Month","y":"Projected Stability"},title="Projected Financial Stability (12 Months)")
-fig2.add_vline(x=month_selected,line_dash="dash",line_color="red")
-st.plotly_chart(fig2,width="stretch")
-
-# ---------------- SCENARIO STRESS TEST ----------------
-st.subheader("⚡ Scenario Stress Testing")
-scenario = st.selectbox("Choose Scenario", ["Income Drop 20%","Unexpected Expenses 10k","EMI Increase 50%"])
-sim_income = income
-sim_expense = total_expense
-if scenario=="Income Drop 20%": sim_income*=0.8
-elif scenario=="Unexpected Expenses 10k": sim_expense+=10000
-elif scenario=="EMI Increase 50%": sim_expense+=emi*0.5
-sim_savings = sim_income-sim_expense
-sim_savings_ratio = sim_savings/sim_income if sim_income else 0
-st.write(f"Simulated Savings Ratio: {sim_savings_ratio*100:.1f}%")
+fig_proj = px.line(x=np.arange(1,13),y=projection,labels={"x":"Month","y":"Projected Stability"},title="Projected Financial Stability")
+fig_proj.add_vline(x=month_selected,line_dash="dash",line_color="red")
+st.plotly_chart(fig_proj,width="stretch")
 
 # ---------------- PDF REPORT ----------------
 st.subheader("📄 Download Executive PDF Report")
@@ -175,7 +175,7 @@ def generate_pdf():
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer)
     styles = getSampleStyleSheet()
-    elements = [Paragraph("Executive AI Financial Report", styles["Title"]), Spacer(1,20)]
+    elements = [Paragraph("Ultimate AI Financial Report", styles["Title"]), Spacer(1,20)]
     data=[["Metric","Value"],["Risk Score", str(risk_score)],["Credit Risk","High Risk" if credit_risk else "Low Risk"],
           ["Stability %", f"{financial_stability*100:.2f}%"],["Savings %", f"{savings_ratio*100:.2f}%"]]
     table = Table(data,colWidths=[3*inch,2*inch])
@@ -189,4 +189,4 @@ def generate_pdf():
 
 if st.button("Generate Executive Report"):
     pdf_buffer = generate_pdf()
-    st.download_button("Download PDF", pdf_buffer,"Finance_Report_Pro.pdf","application/pdf")
+    st.download_button("Download PDF", pdf_buffer,"Ultimate_Finance_Report.pdf","application/pdf")
